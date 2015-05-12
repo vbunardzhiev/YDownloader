@@ -1,8 +1,9 @@
-import string, os, re, pafy, sys, glob, time
+import string, os, re, sys, glob, time
+import pafy
  
-REFRESH_TIME = 600
+READY = 0
 
-class downloader():
+class Downloader():
     def __init__(self,url,path):
         self.allowed_symbols = re.sub('[/\\:?"<>|*]', '_', string.printable)
         self.files_to_convert = False
@@ -11,7 +12,8 @@ class downloader():
         self.playlist_title = ''
         self.playlist_size = 0
         self.playlist_url = url
-        self.dir_do_dl = path
+        self.dir_to_dl = path
+        self.songs_downloaded = 0
         
 
     def filter_string_sequence(self,sequence):
@@ -22,8 +24,8 @@ class downloader():
 
     def path_check(self):
         try:
-            if not os.path.exists(self.dir_do_dl): 
-                os.makedirs(self.dir_do_dl)
+            if not os.path.exists(self.dir_to_dl): 
+                os.makedirs(self.dir_to_dl)
             return True
         except FileNotFoundError:
             return False
@@ -39,39 +41,44 @@ class downloader():
 
     def is_song_downloaded(self,elements):
         vid_name = elements[:-4]
-        if not (os.path.exists(self.dir_do_dl+vid_name+".ogg") or \
-                os.path.exists(self.dir_do_dl+vid_name+".m4a") or \
-                os.path.exists(self.dir_do_dl+vid_name+".mp3")):
+        if not (os.path.exists(self.dir_to_dl+vid_name+".ogg") or \
+                os.path.exists(self.dir_to_dl+vid_name+".m4a") or \
+                os.path.exists(self.dir_to_dl+vid_name+".mp3")):
             return False
         return True
 
     def download_playlist(self):
-        counter = 0
+        self.songs_downloaded
         if not self.url_check():
             return 1
         playlist = pafy.get_playlist(self.playlist_url)
         self.playlist_title = playlist['title']
         self.playlist_author = playlist['author']
         self.playlist_size = len(playlist['items'])
-        self.dir_do_dl = self.dir_do_dl +'@'+self.playlist_author+'  #' \
+        self.dir_to_dl = self.dir_to_dl +'@'+self.playlist_author+'  #' \
             + self.playlist_title+'/'
         if not self.path_check():
             return 2
         print ('Syncing YouTube playlist [' + \
             self.filter_string_sequence(playlist['title']) +'] '+'('+ \
             str(self.playlist_size)+' songs) '+'with ' + \
-            self.filter_string_sequence(self.dir_do_dl))
+            self.filter_string_sequence(self.dir_to_dl))
         for videos in playlist['items']:
-            try:
-                counter += 1 
+            try: 
                 stream = videos['pafy'].getbestaudio()
                 if stream is not None:
                     stream._title = stream.generate_filename()
                     if self.is_song_downloaded(stream._title):
                         continue
+                    #
+                    stream._title = stream._title[:-4]
+                    #print (stream._title)
+                    # 
+
                     print ('Downloading' + ' -> ' \
                         + self.filter_string_sequence(stream.filename))
-                    stream.download(self.dir_do_dl)
+                    self.songs_downloaded += 1
+                    stream.download(self.dir_to_dl)
                     self.files_to_convert = True
             except OSError:
                 pass          
@@ -79,8 +86,16 @@ class downloader():
                 pass
             except ZeroDivisionError:
                 pass
+            except KeyError:
+                #stupid pafy
+                pass
+            except AttributeError:
+                #stupid pafy
+                pass
+            except ValueError:
+                #stupid pafy
+                pass
         print ('Done                                                ')
-        print ('Songs downloaded:'+str(counter))
         print ('-----------------')
         return 0
 
@@ -90,16 +105,15 @@ class downloader():
             os.system('del "'+item+'"')
 
     def format_files(self, path):
-        if self.files_to_convert:
-            a = glob.glob(path+"*.m4a")+glob.glob(path+"*.ogg")
-            for item in a:
-                input_song = item
-                output_song = item[:-4] + ".mp3"
-                command = ('ffmpeg -i "' + input_song+'" "' + output_song+'"')
-                os.system(command)
-                os.system('del "'+item+'"')
+        a = glob.glob(path+"*.m4a")+glob.glob(path+"*.ogg")
+        for item in a:
+            input_song = item
+            output_song = item[:-4] + ".mp3"
+            command = ('ffmpeg -i "' + input_song+'" "' + output_song+'"')
+            os.system(command)
+            os.system('del "'+item+'"')
 
-while True:
+while READY == 0:
     f = open('synclist.txt')
     for lines in f:
         if lines[:4] == 'http':
@@ -107,17 +121,12 @@ while True:
             continue
         else:
             destination = lines[:-1]
-        p = downloader(url,destination)
+        p = Downloader(url,destination)
         p.download_playlist()
 
-        p.delete_incomplete(p.dir_do_dl)
-        #############p.format_files(p.dir_do_dl)
-        del p
-        
+        p.delete_incomplete(p.dir_to_dl)
+        if p.songs_downloaded == 0:
+            p.format_files(p.dir_to_dl)
+            del p
+            READY = 1  
     f.close()
-    time.sleep(REFRESH_TIME)
-    
-
-
-
-
