@@ -1,4 +1,9 @@
+<<<<<<< HEAD
 https://www.youtube.com/playlist?list=PLe5NT0OhEv1MiZZMF48ditX4uL_bjKsad
 E:/Music/
 https://www.youtube.com/playlist?list=PLe5NT0OhEv1MiZZMF48ditX4uL_bjKsad
 E:/Music/
+=======
+https://www.youtube.com/playlist?list=PLV0vJQUYPWFo4Dp0V54-Y1yI5pnN_xs42
+C:/Users/Vasil Bunardzhiev/Downloads/
+>>>>>>> origin/master
