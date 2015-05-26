@@ -14,7 +14,12 @@ class Downloader():
         self.playlist_url = url
         self.dir_to_dl = path
         self.songs_downloaded = 0
+<<<<<<< HEAD
 
+=======
+        pafy.set_api_key('AIzaSyBHkNTjYXIDMR7TdoR7ZqgNiymYgvvt_pE')
+        
+>>>>>>> origin/master
 
     def filter_string_sequence(self,sequence):
         for chars in sequence:
