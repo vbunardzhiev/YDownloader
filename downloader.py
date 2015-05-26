@@ -1,6 +1,6 @@
 import string, os, re, sys, glob, time
 import pafy
- 
+
 READY = 0
 
 class Downloader():
@@ -14,7 +14,7 @@ class Downloader():
         self.playlist_url = url
         self.dir_to_dl = path
         self.songs_downloaded = 0
-        
+
 
     def filter_string_sequence(self,sequence):
         for chars in sequence:
@@ -24,7 +24,7 @@ class Downloader():
 
     def path_check(self):
         try:
-            if not os.path.exists(self.dir_to_dl): 
+            if not os.path.exists(self.dir_to_dl):
                 os.makedirs(self.dir_to_dl)
             return True
         except FileNotFoundError:
@@ -48,6 +48,7 @@ class Downloader():
         return True
 
     def download_playlist(self):
+        song_count = 0
         self.songs_downloaded
         if not self.url_check():
             return 1
@@ -64,7 +65,8 @@ class Downloader():
             str(self.playlist_size)+' songs) '+'with ' + \
             self.filter_string_sequence(self.dir_to_dl))
         for videos in playlist['items']:
-            try: 
+            try:
+                song_count += 1
                 stream = videos['pafy'].getbestaudio()
                 if stream is not None:
                     stream._title = stream.generate_filename()
@@ -73,15 +75,16 @@ class Downloader():
                     #
                     stream._title = stream._title[:-4]
                     #print (stream._title)
-                    # 
+                    #
 
                     print ('Downloading' + ' -> ' \
-                        + self.filter_string_sequence(stream.filename))
-                    self.songs_downloaded += 1
+                        + self.filter_string_sequence(stream.filename).ljust(90)
+                        + str(song_count) + '/' + str(self.playlist_size))
+                    self.songs_donlwoaded += 1
                     stream.download(self.dir_to_dl)
                     self.files_to_convert = True
             except OSError:
-                pass          
+                pass
             except IOError:
                 pass
             except ZeroDivisionError:
@@ -114,7 +117,7 @@ class Downloader():
             os.system('del "'+item+'"')
 
 while READY == 0:
-    f = open('synclist.txt')
+    f = open(sys.argv[1])
     for lines in f:
         if lines[:4] == 'http':
             url = lines[:-1]
@@ -125,8 +128,9 @@ while READY == 0:
         p.download_playlist()
 
         p.delete_incomplete(p.dir_to_dl)
-        if p.songs_downloaded == 0:
-            p.format_files(p.dir_to_dl)
-            del p
-            READY = 1  
+        #if p.songs_downloaded == 0:
+        # Only formats if there are non-formatted files
+        p.format_files(p.dir_to_dl)
+        del p
+        #READY = 1
     f.close()
