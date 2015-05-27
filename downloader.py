@@ -6,14 +6,11 @@ READY = 0
 class Downloader():
     def __init__(self,url,path):
         self.allowed_symbols = re.sub('[/\\:?"<>|*]', '_', string.printable)
-        self.files_to_convert = False
-        self.current_file = 1
         self.playlist_author = ''
         self.playlist_title = ''
         self.playlist_size = 0
         self.playlist_url = url
         self.dir_to_dl = path
-        self.songs_downloaded = 0
         pafy.set_api_key('AIzaSyBHkNTjYXIDMR7TdoR7ZqgNiymYgvvt_pE')
         
     def filter_string_sequence(self,sequence):
@@ -49,7 +46,6 @@ class Downloader():
 
     def download_playlist(self):
         song_count = 0
-        self.songs_downloaded
         if not self.url_check():
             return 1
         playlist = pafy.get_playlist(self.playlist_url)
@@ -80,9 +76,7 @@ class Downloader():
                     print ('Downloading' + ' -> ' \
                         + self.filter_string_sequence(stream.filename).ljust(90)
                         + str(song_count) + '/' + str(self.playlist_size))
-                    self.songs_donlwoaded += 1
                     stream.download(self.dir_to_dl)
-                    self.files_to_convert = True
             except OSError:
                 pass
             except IOError:
@@ -90,14 +84,12 @@ class Downloader():
             except ZeroDivisionError:
                 pass
             except KeyError:
-                #stupid pafy
                 pass
-            except AttributeError:
-                #stupid pafy
+            except IndexError:
                 pass
-            except ValueError:
-                #stupid pafy
-                pass
+            # except ValueError:
+            #     pass
+
         print ('Done                                                ')
         print ('-----------------')
         return 0
@@ -108,6 +100,7 @@ class Downloader():
             os.system('del "'+item+'"')
 
     def format_files(self, path):
+        ### If called after script has finished DL, it formats the non-formated files. ###
         a = glob.glob(path+"*.m4a")+glob.glob(path+"*.ogg")
         for item in a:
             input_song = item
@@ -128,9 +121,6 @@ while READY == 0:
         p.download_playlist()
 
         p.delete_incomplete(p.dir_to_dl)
-        #if p.songs_downloaded == 0:
-        # Only formats if there are non-formatted files
         p.format_files(p.dir_to_dl)
         del p
-        #READY = 1
     f.close()
