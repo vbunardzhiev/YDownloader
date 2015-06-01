@@ -17,6 +17,8 @@ class Downloader():
         for chars in sequence:
             if chars not in self.allowed_symbols:
                 sequence = re.sub(re.escape(chars),'_',sequence)
+            if len(sequence) > 80:
+                sequence = sequence[:40] + '..' + sequence[55:]
         return sequence
 
     def path_check(self):
@@ -68,11 +70,7 @@ class Downloader():
                     stream._title = stream.generate_filename()
                     if self.is_song_downloaded(stream._title):
                         continue
-                    #
                     stream._title = stream._title[:-4]
-                    #print (stream._title)
-                    #
-
                     print ('Downloading' + ' -> ' \
                         + self.filter_string_sequence(stream.filename).ljust(90)
                         + str(song_count) + '/' + str(self.playlist_size))
@@ -87,10 +85,12 @@ class Downloader():
                 pass
             except IndexError:
                 pass
+            except AttributeError:
+                pass
             # except ValueError:
             #     pass
 
-        print ('Done                                                ')
+        print ('Done'.ljust(90))
         print ('-----------------')
         return 0
 
@@ -101,26 +101,32 @@ class Downloader():
 
     def format_files(self, path):
         ### If called after script has finished DL, it formats the non-formated files. ###
+        current = 0
+        print ('Transcoding audio files. Do not interrupt!')
+        sys.stdout.write("\r" + ' 0.00%' + "\r")
+        sys.stdout.flush()
         a = glob.glob(path+"*.m4a")+glob.glob(path+"*.ogg")
         for item in a:
             input_song = item
             output_song = item[:-4] + ".mp3"
-            command = ('ffmpeg -i "' + input_song+'" "' + output_song+'"')
-            os.system(command)
+            os.system('ffmpeg -loglevel quiet -i "' + input_song+'" "' + output_song+'"')
+            current += 1
+            sys.stdout.write("\r" + ' {:.2%}'.format(current/len(a)) + "\r")
+            sys.stdout.flush()
             os.system('del "'+item+'"')
 
-while READY == 0:
-    f = open(sys.argv[1])
-    for lines in f:
-        if lines[:4] == 'http':
-            url = lines[:-1]
-            continue
-        else:
-            destination = lines[:-1]
-        p = Downloader(url,destination)
-        p.download_playlist()
+#while READY == 0:
+f = open(sys.argv[1])
+for lines in f:
+    if lines[:4] == 'http':
+        url = lines[:-1]
+        continue
+    else:
+        destination = lines[:-1]
+    p = Downloader(url,destination)
+    p.download_playlist()
 
-        p.delete_incomplete(p.dir_to_dl)
-        p.format_files(p.dir_to_dl)
-        del p
-    f.close()
+    p.delete_incomplete(p.dir_to_dl)
+    p.format_files(p.dir_to_dl)
+    del p
+f.close()
