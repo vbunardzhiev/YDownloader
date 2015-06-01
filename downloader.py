@@ -102,10 +102,11 @@ class Downloader():
     def format_files(self, path):
         ### If called after script has finished DL, it formats the non-formated files. ###
         current = 0
-        print ('Transcoding audio files. Do not interrupt!')
-        sys.stdout.write("\r" + ' 0.00%' + "\r")
-        sys.stdout.flush()
         a = glob.glob(path+"*.m4a")+glob.glob(path+"*.ogg")
+        if a != []:
+            print ('Transcoding audio files. Do not interrupt!')
+            sys.stdout.write("\r" + ' 0.00%' + "\r")
+            sys.stdout.flush()
         for item in a:
             input_song = item
             output_song = item[:-4] + ".mp3"
