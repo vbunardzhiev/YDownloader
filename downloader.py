@@ -99,9 +99,10 @@ class Downloader():
         for item in a:
             os.system('del "'+item+'"')
 
-    def format_files(self, path):
-        ### If called after script has finished DL, it formats the non-formated files. ###
+    def format_files(self, path, quiet = False):
+        ### It formats only the non-formated files. ###
         current = 0
+        quiet_mode = 'ffmpeg -loglevel quiet -i "'
         a = glob.glob(path+"*.m4a")+glob.glob(path+"*.ogg")
         if a != []:
             print ('Transcoding audio files. Do not interrupt!')
@@ -110,7 +111,10 @@ class Downloader():
         for item in a:
             input_song = item
             output_song = item[:-4] + ".mp3"
-            os.system('ffmpeg -loglevel quiet -i "' + input_song+'" "' + output_song+'"')
+            if quiet:
+                os.system(quiet_mode + input_song+'" "' + output_song+'"')
+            else:
+                os.system('ffmpeg -i "' + input_song+'" "' + output_song+'"')
             current += 1
             sys.stdout.write("\r" + ' {:.2%}'.format(current/len(a)) + "\r")
             sys.stdout.flush()
@@ -128,6 +132,6 @@ for lines in f:
     p.download_playlist()
 
     p.delete_incomplete(p.dir_to_dl)
-    p.format_files(p.dir_to_dl)
+    p.format_files(p.dir_to_dl, True)
     del p
 f.close()
