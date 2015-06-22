@@ -74,7 +74,7 @@ class Downloader():
                     print ('Downloading' + ' -> ' \
                         + self.filter_string_sequence(stream.filename).ljust(90)
                         + str(song_count) + '/' + str(self.playlist_size))
-                    stream.download(self.dir_to_dl)
+                    stream.download(filepath=self.dir_to_dl, meta=True)
             except OSError:
                 pass
             except IOError:
@@ -120,7 +120,6 @@ class Downloader():
             sys.stdout.flush()
             os.system('del "'+item+'"')
 
-#while READY == 0:
 f = open(sys.argv[1])
 for lines in f:
     if lines[:4] == 'http':
