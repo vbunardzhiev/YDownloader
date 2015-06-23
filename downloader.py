@@ -99,7 +99,7 @@ class Downloader():
         for item in a:
             os.system('del "'+item+'"')
 
-    def format_files(self, path, quiet = False):
+    def format_files(self, path, format, quiet = False):
         ### It formats only the non-formated files. ###
         current = 0
         quiet_mode = 'ffmpeg -loglevel quiet -i "'
@@ -110,7 +110,7 @@ class Downloader():
             sys.stdout.flush()
         for item in a:
             input_song = item
-            output_song = item[:-4] + ".mp3"
+            output_song = item[:-4] + '.' + format
             if quiet:
                 os.system(quiet_mode + input_song+'" "' + output_song+'"')
             else:
@@ -129,8 +129,8 @@ for lines in f:
         destination = lines[:-1]
     p = Downloader(url,destination)
     p.download_playlist()
-
     p.delete_incomplete(p.dir_to_dl)
-    p.format_files(p.dir_to_dl, True)
+    if len(sys.argv) > 2:
+        p.format_files(p.dir_to_dl, sys.argv[2], True)
     del p
 f.close()
