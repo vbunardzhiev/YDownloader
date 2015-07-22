@@ -37,9 +37,3 @@ class PlaylistsDB():
 				result = db.fetchone()[0]
 				connection.close()
 				return result
-
-a = PlaylistsDB('playlists_data.db')
-a.insert_playlist('rap', 'youtubata1')
-a.insert_playlist('rap', 'youtubata2')
-print (a.get_playlist_url('rap'))
-print (a.get_playlists())
