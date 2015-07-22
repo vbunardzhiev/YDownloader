@@ -1,4 +1,4 @@
-import string, os, re, sys, glob, time
+import string, os, re, sys, glob, time, subprocess
 import pafy
 
 READY = 0
@@ -12,7 +12,7 @@ class Downloader():
         self.playlist_url = url
         self.dir_to_dl = path
         pafy.set_api_key('AIzaSyBHkNTjYXIDMR7TdoR7ZqgNiymYgvvt_pE')
-        
+
     def filter_string_sequence(self,sequence):
         for chars in sequence:
             if chars not in self.allowed_symbols:
@@ -115,22 +115,26 @@ class Downloader():
                 os.system(quiet_mode + input_song+'" "' + output_song+'"')
             else:
                 os.system('ffmpeg -i "' + input_song+'" "' + output_song+'"')
+                #p = subprocess.check_output(['ffmpeg -i "', input_song, '" "', output_song, '"'])
+                #print (p)
             current += 1
             sys.stdout.write("\r" + ' {:.2%}'.format(current/len(a)) + "\r")
             sys.stdout.flush()
             os.system('del "'+item+'"')
 
-f = open(sys.argv[1])
-for lines in f:
-    if lines[:4] == 'http':
-        url = lines[:-1]
-        continue
-    else:
-        destination = lines[:-1]
-    p = Downloader(url,destination)
-    p.download_playlist()
-    p.delete_incomplete(p.dir_to_dl)
-    if len(sys.argv) > 2:
-        p.format_files(p.dir_to_dl, sys.argv[2], True)
-    del p
-f.close()
+
+if __name__ == "__main__":
+    f = open(sys.argv[1])
+    for lines in f:
+        if lines[:4] == 'http':
+            url = lines[:-1]
+
+        destination = sys.argv[2]
+        file_format = sys.argv[3]
+        p = Downloader(url,destination)
+        p.download_playlist()
+        p.delete_incomplete(p.dir_to_dl)
+        if len(sys.argv) > 2:
+            p.format_files(p.dir_to_dl, sys.argv[3], True)
+        del p
+    f.close()
