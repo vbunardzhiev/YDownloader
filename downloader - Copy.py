@@ -12,7 +12,6 @@ class Downloader():
         self.playlist_size = 0
         self.playlist_url = url
         self.dir_to_dl = path
-        self.is_there_playlist_obj = False
         pafy.set_api_key('AIzaSyBHkNTjYXIDMR7TdoR7ZqgNiymYgvvt_pE')
 
     def filter_string_sequence(self,sequence):
@@ -23,19 +22,11 @@ class Downloader():
                 sequence = sequence[:40] + '..' + sequence[55:]
         return sequence
 
-    def create_playlist_object(self):
+    def path_check(self):
         try:
-            playlist = pafy.get_playlist(self.playlist_url)
-            self.playlist_title = playlist['title']
-            self.playlist_author = playlist['author']
-            self.playlist_size = len(playlist['items'])
-            if not self.is_there_playlist_obj:
-                self.dir_to_dl = self.dir_to_dl +'@'+self.playlist_author+'  #' \
-                               + self.playlist_title+'\\'
-                self.is_there_playlist_obj = True
             if not os.path.exists(self.dir_to_dl):
                 os.makedirs(self.dir_to_dl)
-            return playlist
+            return True
         except FileNotFoundError:
             return False
 
@@ -60,9 +51,14 @@ class Downloader():
         song_count = 0
         if not self.is_url_real():
             return 1
-        if not self.create_playlist_object():
+        playlist = pafy.get_playlist(self.playlist_url)
+        self.playlist_title = playlist['title']
+        self.playlist_author = playlist['author']
+        self.playlist_size = len(playlist['items'])
+        self.dir_to_dl = self.dir_to_dl +'@'+self.playlist_author+'  #' \
+            + self.playlist_title+'/'
+        if not self.path_check():
             return 2
-        playlist = self.create_playlist_object()
         print ('Syncing YouTube playlist [' + \
             self.filter_string_sequence(playlist['title']) +'] '+'('+ \
             str(self.playlist_size)+' songs) '+'with ' + \
@@ -112,40 +108,48 @@ class Downloader():
         return pairs
 
     def detect_audio_level(self, audio_file):
+        #os.system('ffmpeg -loglevel quiet -i "' + audio_file+'" -af "volumedetect" -f "' + output_song+'"')
         command_ = 'ffmpeg -i "'+ audio_file+ '" -af "volumedetect" -f null /dev/null'
-        cmd_output = subprocess.getoutput(command_)
-        first_match = re.findall('max_volume: ' + r'.+' , cmd_output)[0]
-        return -float(re.findall(r'-?[0-9]{1,3}[.][0-9]{1}', first_match)[0])
-
+        regex = re.findall(r'[m][a][x][_][v][o][l][u][m][e].+',subprocess.getoutput(command_))
+        #ADD code for non allowed printable symbols in upper line#
+        print (self.filter_string_sequence(audio_file))
+        return float(regex[0][-7:-3])
 
     def format_files(self, path, audio_format, delete_original_files=True):
-        if not self.create_playlist_object():
-            return 2
         ### It formats only the non-formated files. ###
         current = 1
-        in_and_out_files = self.return_paired_files(self.dir_to_dl, audio_format)
+        in_and_out_files = self.return_paired_files(path, audio_format)
         if in_and_out_files != []:
             print ('Transcoding audio files. Do not interrupt!')
-            sys.stdout.write("\r" + ' 0.00%' + "\r")
+            #sys.stdout.write("\r" + ' 0.00%' + "\r")
         for input_song, output_song in in_and_out_files:
             sys.stdout.flush()
-            sound_difference = (self.detect_audio_level(input_song))
-            os.system('ffmpeg -loglevel quiet -i "' + input_song+'" -af volume=' + str(sound_difference) + 'dB "' + output_song+'"')
-            sys.stdout.write("\r" + ' {:.2%}'.format(current/len(in_and_out_files)) + "\r")
+            print (self.detect_audio_level(input_song))
+            #os.system('ffmpeg -i "' + input_song+'" "' + output_song+'"')
+            #sys.stdout.write("\r" + ' {:.2%}'.format(current/len(in_and_out_files)) + "\r")
             current += 1
-            if delete_original_files:
-                os.system('del "'+input_song+'"')
+            #################################################
+            # DEL FILES!!!
+            # if delete_original_files:
+            #     os.system('del "'+input_song+'"')
 
 
 if __name__ == "__main__":
     playlist_db = Playlists('C:\\Users\\User\\AppData\\Local\\playlists_db\\')
+
     playlist_db.create_db()
+    print ('Created DB')
     url = playlist_db.get_playlist_url(sys.argv[1])
+    print ('Url: '+url)
     directory = sys.argv[2]
+    print ('Dir: '+sys.argv[2])
     p = Downloader(url,directory)
-    p.download_playlist()
+    #p.download_playlist()
     p.delete_incomplete_files(directory)
+    print ('Deleted incomplete')
     if len(sys.argv) > 3:
+        print ('Formating files')
         file_format = sys.argv[3]
         p.format_files(directory, file_format, True)
     del p
+    print ('Formatted songs')
