@@ -2,7 +2,6 @@ import string, os, re, sys, glob, time, subprocess, re
 from PlaylistsDB import Playlists
 import pafy
 
-READY = 0
 
 class Downloader():
     def __init__(self,url,path):
@@ -112,9 +111,12 @@ class Downloader():
         return pairs
 
     def detect_audio_level(self, audio_file):
-        command_ = 'ffmpeg -i "'+ audio_file+ '" -af "volumedetect" -f null /dev/null'
+        new_file = audio_file.rpartition('\\')[0] + '\\' + 'item1' +  '.' + audio_file.rpartition('.')[2]
+        os.rename(audio_file, new_file)
+        command_ = 'ffmpeg -i "'+ new_file+ '" -af "volumedetect" -f null /dev/null'
         cmd_output = subprocess.getoutput(command_)
         first_match = re.findall('max_volume: ' + r'.+' , cmd_output)[0]
+        os.rename(new_file, audio_file)
         return -float(re.findall(r'-?[0-9]{1,3}[.][0-9]{1}', first_match)[0])
 
 
