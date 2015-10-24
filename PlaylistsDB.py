@@ -1,4 +1,4 @@
-import sqlite3, os
+import sqlite3, os, datetime
 
 class Playlists():
 		def __init__(self, db_filename):
@@ -17,17 +17,26 @@ class Playlists():
 				connection = sqlite3.connect(self.db_file)
 				db = connection.cursor()
 				db.execute('''CREATE TABLE playlists
-											(name text, playlist_url text)''')
+								(name text,
+								 playlist_url text,
+								 last_downloaded text)''')
 				connection.commit()
 				connection.close()
 				return 0
 			return 1
 
-		def insert_playlist(self, playlist_name, playlist_url):
+		def add_playlist(self, playlist_name, playlist_url):
 			connection = sqlite3.connect(self.db_file)
 			db = connection.cursor()
-			playlist = str(playlist_name), str(playlist_url)
-			db.executemany('INSERT INTO playlists VALUES (?,?)', (playlist,))
+			playlist = str(playlist_name), str(playlist_url), 'N.A.'
+			db.executemany('INSERT INTO playlists VALUES (?,?,?)', (playlist,))
+			connection.commit()
+			connection.close()
+
+		def remove_playlist(self, playlist_name):
+			connection = sqlite3.connect(self.db_file)
+			db = connection.cursor()
+			db.execute('DELETE FROM playlists WHERE name = ?', (playlist_name,))
 			connection.commit()
 			connection.close()
 
@@ -36,7 +45,7 @@ class Playlists():
 			connection = sqlite3.connect(self.db_file)
 			db = connection.cursor()
 			for row in db.execute('select * from playlists'):
-					all_playlists.append(row[0])
+					all_playlists.append(row[0].ljust(20) + row[2])
 			connection.close()
 			return all_playlists
 
@@ -44,7 +53,15 @@ class Playlists():
 			all_playlists = []
 			connection = sqlite3.connect(self.db_file)
 			db = connection.cursor()
-			db.execute('select playlist_url from playlists where name=?', (playlist_name,))
+			db.execute('SELECT playlist_url FROM playlists WHERE name=?', (playlist_name,))
 			result = db.fetchone()[0]
 			connection.close()
 			return result
+
+		def update_last_dl(self, playlist_name):
+			connection = sqlite3.connect(self.db_file)
+			db = connection.cursor()
+			time_now = str(datetime.datetime.now())[:19]
+			db.execute('UPDATE playlists SET last_downloaded=? WHERE name=?', (time_now,playlist_name,))
+			connection.commit()
+			connection.close()
