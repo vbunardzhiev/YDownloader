@@ -1,13 +1,15 @@
-import string, os, re, glob, time, subprocess, re, sys
+import string, os, re, sys, glob, time, subprocess, re
 from PlaylistsDB import Playlists
 import pafy
+
+READY = 0
 
 class Downloader():
     def __init__(self,url,path):
         self.allowed_symbols = re.sub('[/\\:?"<>|*]', '_', string.printable)
-        self.playlist_author = None
-        self.playlist_title = None
-        self.playlist_size = None
+        self.playlist_author = ''
+        self.playlist_title = ''
+        self.playlist_size = 0
         self.playlist_url = url
         self.dir_to_dl = path
         self.is_there_playlist_obj = False
@@ -110,15 +112,11 @@ class Downloader():
         return pairs
 
     def detect_audio_level(self, audio_file):
-        audio_file_path = audio_file.rpartition('\\')[0] + '\\'
-        original_extension = '.' + audio_file.rpartition('.')[2]
-        new_name = audio_file_path + 'item_1' + original_extension
-        os.rename(audio_file, new_name)
-        command_ = 'ffmpeg -i "' + new_name + '" -af "volumedetect" -f null /dev/null'
+        command_ = 'ffmpeg -i "'+ audio_file+ '" -af "volumedetect" -f null /dev/null'
         cmd_output = subprocess.getoutput(command_)
         first_match = re.findall('max_volume: ' + r'.+' , cmd_output)[0]
-        os.rename(new_name,audio_file)
         return -float(re.findall(r'-?[0-9]{1,3}[.][0-9]{1}', first_match)[0])
+
 
     def format_files(self, path, audio_format, delete_original_files=True):
         if not self.create_playlist_object():
@@ -127,14 +125,13 @@ class Downloader():
         current = 1
         in_and_out_files = self.return_paired_files(self.dir_to_dl, audio_format)
         if in_and_out_files != []:
-            print ('Transcoding and normalizing audio files. Do not interrupt!')
+            print ('Transcoding audio files. Do not interrupt!')
             sys.stdout.write("\r" + ' 0.00%' + "\r")
-            sys.stdout.flush()
         for input_song, output_song in in_and_out_files:
+            sys.stdout.flush()
             sound_difference = (self.detect_audio_level(input_song))
             os.system('ffmpeg -loglevel quiet -i "' + input_song+'" -af volume=' + str(sound_difference) + 'dB "' + output_song+'"')
             sys.stdout.write("\r" + ' {:.2%}'.format(current/len(in_and_out_files)) + "\r")
-            sys.stdout.flush()
             current += 1
             if delete_original_files:
                 os.system('del "'+input_song+'"')
@@ -143,20 +140,12 @@ class Downloader():
 if __name__ == "__main__":
     playlist_db = Playlists('C:\\Users\\User\\AppData\\Local\\playlists_db\\')
     playlist_db.create_db()
-    if sys.argv[1] == 'list':
-        for playlist in playlist_db.get_playlists():
-            print (playlist)
-    elif sys.argv[1] == 'add':
-        playlist_db.add_playlist(sys.argv[2], sys.argv[3])
-    elif sys.argv[1] == 'remove':
-        playlist_db.remove_playlist(sys.argv[2])
-    else:
-        url = playlist_db.get_playlist_url(sys.argv[1])
-        directory = sys.argv[2]
-        p = Downloader(url,directory)
-        p.download_playlist()
-        p.delete_incomplete_files(directory)
-        playlist_db.update_last_dl(sys.argv[1])
-        if len(sys.argv) > 3:
-            file_format = sys.argv[3]
-            p.format_files(directory, file_format, True)
+    url = playlist_db.get_playlist_url(sys.argv[1])
+    directory = sys.argv[2]
+    p = Downloader(url,directory)
+    p.download_playlist()
+    p.delete_incomplete_files(directory)
+    if len(sys.argv) > 3:
+        file_format = sys.argv[3]
+        p.format_files(directory, file_format, True)
+    del p
