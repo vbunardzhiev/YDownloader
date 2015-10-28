@@ -140,14 +140,24 @@ class Downloader():
 
 
 if __name__ == "__main__":
-    playlist_db = Playlists('C:\\Users\\User\\AppData\\Local\\playlists_db\\')
+    app_data = os.getenv('LOCALAPPDATA')
+    playlist_db = Playlists(app_data + '\\playlists_db\\')
     playlist_db.create_db()
-    url = playlist_db.get_playlist_url(sys.argv[1])
-    directory = sys.argv[2]
-    p = Downloader(url,directory)
-    p.download_playlist()
-    p.delete_incomplete_files(directory)
-    if len(sys.argv) > 3:
-        file_format = sys.argv[3]
-        p.format_files(directory, file_format, True)
-    del p
+    if sys.argv[1] == 'list':
+        for playlist in playlist_db.get_playlists():
+            print (playlist)
+    elif sys.argv[1] == 'add':
+        playlist_db.add_playlist(sys.argv[2], sys.argv[3])
+    elif sys.argv[1] == 'remove':
+        playlist_db.remove_playlist(sys.argv[2])
+    else:
+        url = playlist_db.get_playlist_url(sys.argv[1])
+        directory = sys.argv[2]
+        p = Downloader(url,directory)
+        p.download_playlist()
+        p.delete_incomplete_files(directory)
+        playlist_db.update_last_dl(sys.argv[1])
+        if len(sys.argv) > 3:
+            file_format = sys.argv[3]
+            p.format_files(directory, file_format, True)
+        del p
