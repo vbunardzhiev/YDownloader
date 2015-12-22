@@ -12,7 +12,7 @@ class Downloader():
         self.playlist_url = url
         self.dir_to_dl = path
         self.is_there_playlist_obj = False
-        pafy.set_api_key('AIzaSyBHkNTjYXIDMR7TdoR7ZqgNiymYgvvt_pE')
+        pafy.set_api_key('') #AIzaSyBHkNTjYXIDMR7TdoR7ZqgNiymYgvvt_pE
 
     def filter_string_sequence(self,sequence):
         for chars in sequence:
@@ -56,11 +56,11 @@ class Downloader():
         return True
 
     def download_playlist(self):
-        song_count = 0
         if not self.is_url_real():
             return 1
         if not self.create_playlist_object():
             return 2
+        song_count = 0
         playlist = self.create_playlist_object()
         print ('Syncing YouTube playlist [' + \
             self.filter_string_sequence(playlist['title']) +'] '+'('+ \
@@ -69,9 +69,12 @@ class Downloader():
         for videos in playlist['items']:
             try:
                 song_count += 1
+                count_len = len(str(song_count))
                 stream = videos['pafy'].getbestaudio()
+                print (stream.url)
+                
                 if stream is not None:
-                    stream._title = stream.generate_filename()
+                    stream._title = '0'*(6-count_len) + str(song_count) + ' ' + stream.generate_filename()
                     if self.is_song_downloaded(stream._title):
                         continue
                     stream._title = stream._title[:-4]
@@ -80,16 +83,22 @@ class Downloader():
                         + str(song_count) + '/' + str(self.playlist_size))
                     stream.download(filepath=self.dir_to_dl, meta=True)
             except OSError:
+                print ('OSError')
                 pass
             except IOError:
+                print ('IOError')
                 pass
             except ZeroDivisionError:
+                print ('ZeroDivisionError')
                 pass
             except KeyError:
+                print ('KeyError')
                 pass
             except IndexError:
+                print ('IndexError')
                 pass
             except AttributeError:
+                print ('AttributeError')
                 pass
         print ('Done'.ljust(90))
         print ('-----------------')
@@ -144,8 +153,9 @@ if __name__ == "__main__":
     playlist_db = Playlists(app_data + '\\playlists_db\\')
     playlist_db.create_db()
     if sys.argv[1] == 'list':
-        for playlist in playlist_db.get_playlists():
-            print (playlist)
+        playlists = playlist_db.get_playlists()
+        for key in playlists:
+            print (playlists[key][0])
     elif sys.argv[1] == 'add':
         playlist_db.add_playlist(sys.argv[2], sys.argv[3])
     elif sys.argv[1] == 'remove':
@@ -156,7 +166,7 @@ if __name__ == "__main__":
         p = Downloader(url,directory)
         p.download_playlist()
         p.delete_incomplete_files(directory)
-        playlist_db.update_last_dl(sys.argv[1])
+        #playlist_db.update_last_dl(sys.argv[1])
         if len(sys.argv) > 3:
             file_format = sys.argv[3]
             p.format_files(directory, file_format, True)
