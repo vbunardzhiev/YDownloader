@@ -67,3 +67,4 @@ class Playlists():
 			db.execute('UPDATE playlists SET last_downloaded=? WHERE name=?', (time_now,playlist_name,))
 			connection.commit()
 			connection.close()
+

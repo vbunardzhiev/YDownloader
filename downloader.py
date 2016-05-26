@@ -12,7 +12,7 @@ class Downloader():
         self.playlist_url = url
         self.dir_to_dl = path
         self.is_there_playlist_obj = False
-        pafy.set_api_key('') #AIzaSyBHkNTjYXIDMR7TdoR7ZqgNiymYgvvt_pE
+        pafy.set_api_key('AIzaSyBHkNTjYXIDMR7TdoR7ZqgNiymYgvvt_pE') #AIzaSyBHkNTjYXIDMR7TdoR7ZqgNiymYgvvt_pE
 
     def filter_string_sequence(self,sequence):
         for chars in sequence:
@@ -47,11 +47,12 @@ class Downloader():
         except OSError:
             return False
 
-    def is_song_downloaded(self,elements):
-        filename = elements[:-4]
-        if not (os.path.exists(self.dir_to_dl+filename+".ogg") or \
-                os.path.exists(self.dir_to_dl+filename+".m4a") or \
-                os.path.exists(self.dir_to_dl+filename+".mp3")):
+    def is_song_downloaded(self,files):
+        filename = files.rpartition('.')[0]
+        if not (os.path.exists(filename+".ogg") or \
+                os.path.exists(filename+".m4a") or \
+                os.path.exists(filename+".webm") or \
+                os.path.exists(filename+".mp3")):
             return False
         return True
 
@@ -66,22 +67,24 @@ class Downloader():
             self.filter_string_sequence(playlist['title']) +'] '+'('+ \
             str(self.playlist_size)+' songs) '+'with ' + \
             self.filter_string_sequence(self.dir_to_dl))
+
         for videos in playlist['items']:
             try:
                 song_count += 1
                 count_len = len(str(song_count))
                 stream = videos['pafy'].getbestaudio()
-                print (stream.url)
                 
                 if stream is not None:
-                    stream._title = '0'*(6-count_len) + str(song_count) + ' ' + stream.generate_filename()
-                    if self.is_song_downloaded(stream._title):
+                    new_name = self.dir_to_dl + '\\' + '0'*(6-count_len) + str(song_count) + ' ' + stream.filename
+                    if self.is_song_downloaded(new_name):
+                        print ('Skipping [already downloaded] {}'.format(new_name.rpartition('\\')[2]))
                         continue
-                    stream._title = stream._title[:-4]
                     print ('Downloading' + ' -> ' \
-                        + self.filter_string_sequence(stream.filename).ljust(90)
+                        + self.filter_string_sequence(new_name.rpartition('\\')[2]).ljust(90)
                         + str(song_count) + '/' + str(self.playlist_size))
                     stream.download(filepath=self.dir_to_dl, meta=True)
+                    os.system('mv "{0}"  "{1}"'.format(self.dir_to_dl + '\\' + stream.filename, new_name))
+
             except OSError:
                 print ('OSError')
                 pass
@@ -141,7 +144,7 @@ class Downloader():
         for input_song, output_song in in_and_out_files:
             sys.stdout.flush()
             sound_difference = (self.detect_audio_level(input_song))
-            os.system('ffmpeg -loglevel quiet -i "' + input_song+'" -af volume=' + str(sound_difference) + 'dB "' + output_song+'"')
+            os.system('ffmpeg -n -loglevel quiet -i "' + input_song+'" -af volume=' + str(sound_difference) + 'dB "' + output_song+'"')
             sys.stdout.write("\r" + ' {:.2%}'.format(current/len(in_and_out_files)) + "\r")
             current += 1
             if delete_original_files:
@@ -164,6 +167,7 @@ if __name__ == "__main__":
         url = playlist_db.get_playlist_url(sys.argv[1])
         directory = sys.argv[2]
         p = Downloader(url,directory)
+        os.chdir(p.dir_to_dl)
         p.download_playlist()
         p.delete_incomplete_files(directory)
         #playlist_db.update_last_dl(sys.argv[1])
