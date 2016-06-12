@@ -100,7 +100,8 @@ def fetch_decode(url):
 
 def new(url, basic=True, gdata=False, signature=True, size=False,
         callback=lambda x: None):
-    """ Return a new pafy instance given a url or video id.
+    """ Return a new pafy instance given a 
+     or video id.
 
     Optional arguments:
         basic - fetch basic metadata and streams
@@ -566,7 +567,7 @@ def _make_url(raw, sig, quick=True):
             raise IOError("Error retrieving url")
 
         raw += "&signature=" + sig
-
+    print (raw)
     return raw
 
 

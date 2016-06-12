@@ -12,9 +12,14 @@ class Downloader():
         self.playlist_url = url
         self.dir_to_dl = path
         self.is_there_playlist_obj = False
-        pafy.set_api_key('AIzaSyBHkNTjYXIDMR7TdoR7ZqgNiymYgvvt_pE')
+        #pafy.set_api_key('AIzaSyBHkNTjYXIDMR7TdoR7ZqgNiymYgvvt_pE') #AIzaSyBHkNTjYXIDMR7TdoR7ZqgNiymYgvvt_pE
 
-    def filter_string_sequence(self,sequence):
+    def filter_filename(self,sequence):
+        ok = re.compile(r'[^\\/:*?"<>|]')
+        seq_ = "".join(x if ok.match(x) else "_" for x in sequence)
+        return seq_
+
+    def filter_string_sequence_printable(self,sequence):
         for chars in sequence:
             if chars not in self.allowed_symbols:
                 sequence = re.sub(re.escape(chars),'_',sequence)
@@ -47,49 +52,61 @@ class Downloader():
         except OSError:
             return False
 
-    def is_song_downloaded(self,elements):
-        filename = elements[:-4]
-        if not (os.path.exists(self.dir_to_dl+filename+".ogg") or \
-                os.path.exists(self.dir_to_dl+filename+".m4a") or \
-                os.path.exists(self.dir_to_dl+filename+".mp3")):
-            return False
-        return True
+    def is_song_downloaded(self ,filename):
+        pattern = self.dir_to_dl + '*{}.*'.format(glob.escape(filename))
+        files_list = glob.glob(pattern)
+        if len(files_list):
+            return True
+        return False
 
     def download_playlist(self):
-        song_count = 0
         if not self.is_url_real():
             return 1
         if not self.create_playlist_object():
             return 2
+        song_count = 0
         playlist = self.create_playlist_object()
         print ('Syncing YouTube playlist [' + \
-            self.filter_string_sequence(playlist['title']) +'] '+'('+ \
+            self.filter_string_sequence_printable(playlist['title']) +'] '+'('+ \
             str(self.playlist_size)+' songs) '+'with ' + \
-            self.filter_string_sequence(self.dir_to_dl))
-        for videos in playlist['items']:
+            self.filter_string_sequence_printable(self.dir_to_dl))
+
+        for video in playlist['items']:
+            filename = self.filter_filename(video['playlist_meta']['title'])
+            song_count += 1
+            count_len = len(str(song_count))
+            if self.is_song_downloaded(filename):
+                print ('Skipping [already downloaded] {}'.format(self.filter_string_sequence_printable(filename)))
+                self.update_file_index(filename, song_count)
+                continue
+
             try:
-                song_count += 1
-                stream = videos['pafy'].getbestaudio()
+                stream = video['pafy'].getbestaudio()
                 if stream is not None:
-                    stream._title = stream.generate_filename()
-                    if self.is_song_downloaded(stream._title):
-                        continue
-                    stream._title = stream._title[:-4]
+                    new_name = self.dir_to_dl + '\\' + '0'*(6-count_len) + str(song_count) + ' ' + stream.filename
                     print ('Downloading' + ' -> ' \
-                        + self.filter_string_sequence(stream.filename).ljust(90)
+                        + self.filter_string_sequence_printable(new_name.rpartition('\\')[2]).ljust(90)
                         + str(song_count) + '/' + str(self.playlist_size))
                     stream.download(filepath=self.dir_to_dl, meta=True)
+                    os.rename(self.dir_to_dl + '\\' + stream.filename, new_name)
+
             except OSError:
+                print ('OSError')
                 pass
             except IOError:
+                print ('IOError')
                 pass
             except ZeroDivisionError:
+                print ('ZeroDivisionError')
                 pass
             except KeyError:
+                print ('KeyError')
                 pass
             except IndexError:
+                print ('IndexError')
                 pass
             except AttributeError:
+                print ('AttributeError')
                 pass
         print ('Done'.ljust(90))
         print ('-----------------')
@@ -97,16 +114,18 @@ class Downloader():
 
     def delete_incomplete_files(self, path):
         incomplete_files = glob.glob(path + "*.temp")
+        for item in glob.glob(path + "item1.*"):
+            incomplete_files.append(item)        
         for item in incomplete_files:
-            os.system('del "'+item+'"')
+            os.remove(item)
 
     def return_paired_files(self, path, audio_format):
         pairs = []
         other_files = [song for song in glob.glob(path+'*.*')
-                       if song[-3:] != audio_format]
+                       if song.rpartition('.')[2] != audio_format]
         for item in other_files:
             input_song = item
-            output_song = item[:-4] + '.' + audio_format
+            output_song = item.rpartition('.')[0] + '.' + audio_format
             pairs.append((input_song, output_song))
         return pairs
 
@@ -118,7 +137,6 @@ class Downloader():
         first_match = re.findall('max_volume: ' + r'.+' , cmd_output)[0]
         os.rename(new_file, audio_file)
         return -float(re.findall(r'-?[0-9]{1,3}[.][0-9]{1}', first_match)[0])
-
 
     def format_files(self, path, audio_format, delete_original_files=True):
         if not self.create_playlist_object():
@@ -132,11 +150,21 @@ class Downloader():
         for input_song, output_song in in_and_out_files:
             sys.stdout.flush()
             sound_difference = (self.detect_audio_level(input_song))
-            os.system('ffmpeg -loglevel quiet -i "' + input_song+'" -af volume=' + str(sound_difference) + 'dB "' + output_song+'"')
+            os.system('ffmpeg -n -loglevel quiet -i "' + input_song+'" -af volume=' + str(sound_difference) + 'dB "' + output_song+'"')
             sys.stdout.write("\r" + ' {:.2%}'.format(current/len(in_and_out_files)) + "\r")
             current += 1
             if delete_original_files:
-                os.system('del "'+input_song+'"')
+                os.remove(input_song)
+
+    def update_file_index(self, filename, index):
+        pattern = self.dir_to_dl + '*{}.*'.format(glob.escape(filename))
+        file_to_rename = glob.glob(pattern)[0]
+        count_len = len(str(index))
+        new_index = '0'*(6-count_len) + str(index)
+        old_index = file_to_rename.rpartition('\\')[2][:6]
+        new_filename = file_to_rename[:].replace(old_index, new_index)
+        os.rename(file_to_rename, new_filename)
+
 
 
 if __name__ == "__main__":
@@ -144,8 +172,9 @@ if __name__ == "__main__":
     playlist_db = Playlists(app_data + '\\playlists_db\\')
     playlist_db.create_db()
     if sys.argv[1] == 'list':
-        for playlist in playlist_db.get_playlists():
-            print (playlist)
+        playlists = playlist_db.get_playlists()
+        for key in playlists:
+            print (playlists[key][0])
     elif sys.argv[1] == 'add':
         playlist_db.add_playlist(sys.argv[2], sys.argv[3])
     elif sys.argv[1] == 'remove':
@@ -156,7 +185,7 @@ if __name__ == "__main__":
         p = Downloader(url,directory)
         p.download_playlist()
         p.delete_incomplete_files(directory)
-        playlist_db.update_last_dl(sys.argv[1])
+        #playlist_db.update_last_dl(sys.argv[1])
         if len(sys.argv) > 3:
             file_format = sys.argv[3]
             p.format_files(directory, file_format, True)
