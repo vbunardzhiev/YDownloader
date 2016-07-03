@@ -1,6 +1,8 @@
 import string, os, re, sys, glob, time, subprocess, re
 from PlaylistsDB import Playlists
 import pafy
+import requests
+import json
 
 
 class Downloader():
@@ -13,6 +15,18 @@ class Downloader():
         self.dir_to_dl = path
         self.is_there_playlist_obj = False
         #pafy.set_api_key('AIzaSyBHkNTjYXIDMR7TdoR7ZqgNiymYgvvt_pE') #AIzaSyBHkNTjYXIDMR7TdoR7ZqgNiymYgvvt_pE
+
+    def run_async(func):
+        from threading import Thread
+        from functools import wraps
+
+        @wraps(func)
+        def async_func(*args, **kwargs):
+            func_hl = Thread(target = func, args = args, kwargs = kwargs)
+            func_hl.start()
+            return func_hl
+
+        return async_func
 
     def filter_filename(self,sequence):
         ok = re.compile(r'[^\\/:*?"<>|]')
@@ -59,11 +73,13 @@ class Downloader():
             return True
         return False
 
-    def download_playlist(self):
+    def download_playlist(self, del_all):
         if not self.is_url_real():
             return 1
         if not self.create_playlist_object():
             return 2
+        if del_all:
+            self.delete_dir(self.dir_to_dl)
         song_count = 0
         playlist = self.create_playlist_object()
         print ('Syncing YouTube playlist [' + \
@@ -74,6 +90,7 @@ class Downloader():
         for video in playlist['items']:
             filename = self.filter_filename(video['playlist_meta']['title'])
             song_count += 1
+
             count_len = len(str(song_count))
             if self.is_song_downloaded(filename):
                 print ('Skipping [already downloaded] {}'.format(self.filter_string_sequence_printable(filename)))
@@ -83,6 +100,7 @@ class Downloader():
             try:
                 stream = video['pafy'].getbestaudio()
                 if stream is not None:
+                    #print (stream._url)
                     new_name = self.dir_to_dl + '\\' + '0'*(6-count_len) + str(song_count) + ' ' + stream.filename
                     print ('Downloading' + ' -> ' \
                         + self.filter_string_sequence_printable(new_name.rpartition('\\')[2]).ljust(90)
@@ -111,6 +129,12 @@ class Downloader():
         print ('Done'.ljust(90))
         print ('-----------------')
         return 0
+
+    @run_async
+    def download_in_pcloud(self, auth, url, name):
+        import urllib.parse
+        request = "http://api-sf1.pcloud.com/downloadfile?auth=" + auth + "&nopartial=1&folderid=271359118&target=" + name + "&url=" + urllib.parse.quote_plus(url)
+        requests.get(request).json()
 
     def delete_incomplete_files(self, path):
         incomplete_files = glob.glob(path + "*.temp")
@@ -149,12 +173,15 @@ class Downloader():
             sys.stdout.write("\r" + ' 0.00%' + "\r")
         for input_song, output_song in in_and_out_files:
             sys.stdout.flush()
-            sound_difference = (self.detect_audio_level(input_song))
+            sound_difference = self.detect_audio_level(input_song)
             os.system('ffmpeg -n -loglevel quiet -i "' + input_song+'" -af volume=' + str(sound_difference) + 'dB "' + output_song+'"')
             sys.stdout.write("\r" + ' {:.2%}'.format(current/len(in_and_out_files)) + "\r")
             current += 1
             if delete_original_files:
                 os.remove(input_song)
+
+    
+
 
     def update_file_index(self, filename, index):
         pattern = self.dir_to_dl + '*{}.*'.format(glob.escape(filename))
@@ -165,6 +192,11 @@ class Downloader():
         new_filename = file_to_rename[:].replace(old_index, new_index)
         os.rename(file_to_rename, new_filename)
 
+    def delete_dir(self, dir_):
+        for the_file in os.listdir(dir_):
+            file_path = os.path.join(dir_, the_file)
+            if os.path.isfile(file_path):
+                os.unlink(file_path)
 
 
 if __name__ == "__main__":
@@ -183,7 +215,11 @@ if __name__ == "__main__":
         url = playlist_db.get_playlist_url(sys.argv[1])
         directory = sys.argv[2]
         p = Downloader(url,directory)
-        p.download_playlist()
+        if len(sys.argv) > 4:
+            if sys.argv[4] == '--del-all':
+                p.download_playlist(True)
+        else:
+            p.download_playlist(False)
         p.delete_incomplete_files(directory)
         #playlist_db.update_last_dl(sys.argv[1])
         if len(sys.argv) > 3:
