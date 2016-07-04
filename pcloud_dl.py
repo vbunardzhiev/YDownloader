@@ -11,18 +11,15 @@ from functools import wraps
 import urllib.parse
 
 def run_async(func):
-    
-
     @wraps(func)
     def async_func(*args, **kwargs):
         func_hl = Thread(target = func, args = args, kwargs = kwargs)
         func_hl.start()
         return func_hl
-
     return async_func
 
 def filter_filename(sequence):
-    printable_ = re.sub(r'[/\\:?"<>|*,&\'~`^\t\n\r\x0b\x0c]', '_', string.printable)
+    #printable_ = re.sub(r'[/\\:?"<>|*,&\'~`^\t\n\r\x0b\x0c]', '_', string.printable)
     ok = re.compile(r'[^/\\:?"<>|*,&\'~`^\t\n\r\x0b\x0c]')
     seq_ = "".join(x if ok.match(x) else "_" for x in sequence)
     return seq_
@@ -44,7 +41,7 @@ for video in playlist['items']:
         stream = video['pafy'].getbestaudio()
         if stream is not None:
             download_in_pcloud(auth="4PD1XkZfXwRZd08cDtWeePfr6nS5pyJDHmtQYYQ7", url=stream._url, name=stream.filename)
-            
+
     except TypeError:
     	print ('TypeError')
     	pass
