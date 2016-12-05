@@ -100,7 +100,6 @@ class Downloader():
             try:
                 stream = video['pafy'].getbestaudio()
                 if stream is not None:
-                    #print (stream._url)
                     new_name = self.dir_to_dl + '\\' + '0'*(6-count_len) + str(song_count) + ' ' + stream.filename
                     print ('Downloading' + ' -> ' \
                         + self.filter_string_sequence_printable(new_name.rpartition('\\')[2]).ljust(90)
@@ -108,6 +107,9 @@ class Downloader():
                     stream.download(filepath=self.dir_to_dl, meta=True)
                     os.rename(self.dir_to_dl + '\\' + stream.filename, new_name)
 
+            except TypeError:
+                print ('TypeError')
+                pass
             except OSError:
                 print ('OSError')
                 pass
