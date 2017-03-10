@@ -18,8 +18,8 @@ class Playlists():
 				db = connection.cursor()
 				db.execute('''CREATE TABLE playlists
 								(name text,
-								 playlist_url text,
-								 last_downloaded text)''')
+								 url text,
+								 last_synced text)''')
 				connection.commit()
 				connection.close()
 				return 0
