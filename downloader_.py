@@ -1,101 +1,119 @@
-import argparse
+import string
 import os
-import sqlite3
-import datetime
+import re
+import argparse
 import pafy
+from pafy.util import xenc
+from playlists_db import create_db, list_playlists, add_playlist, remove_playlist, get_playlist_url
+from urllib.error import HTTPError
 
-db_filename = 'playlists.db'
+def song_downloaded(dir_, filename):
+	extensions = ['ogg', 'm4a', 'webm']
+	filename_ = filter_filename(filename)
+	#print ('file: {}'.format(filename_))
+	path = '{}\\{}'.format(dir_, filename_)
+	for ext in extensions:
+		if os.path.isfile('{}.{}'.format(path, ext)):
+			return True
+	return False
 
-def create_db():
-	if not os.path.exists(db_filename):
-		connection = sqlite3.connect(db_filename)
-		db = connection.cursor()
-		db.execute('''CREATE TABLE playlists
-						(name text,
-						 url text,
-						 last_synced text)''')
-		connection.commit()
-		connection.close()
-		return 0
-	return 1
+def make_string_printable(string_, trunc=None):
+	for chars in string_:
+		if chars not in string.printable:
+			string_ = re.sub(re.escape(chars), '_', string_)
+	if trunc:
+		if len(string_) > 49:
+			trunc = len(string_) - 49
+			l = int((len(string_) - trunc - 3) / 2)
+			return '{}..{}'.format(string_[:l+10], string_[-l+10:])
+	return string_
 
-def add_playlist(playlist_name, playlist_url):
-	connection = sqlite3.connect(db_filename)
-	db = connection.cursor()
-	playlist = str(playlist_name), str(playlist_url), '-'
-	db.executemany('INSERT INTO playlists VALUES (?,?,?)', (playlist,))
-	connection.commit()
-	connection.close()
+def filter_filename(filename):
+		ok = re.compile(r'[^\\/:*?"<>|]')
+		seq_ = "".join(x if ok.match(x) else "_" for x in xenc(filename))
+		return seq_
 
-def remove_playlist(playlist_name):
-	connection = sqlite3.connect(db_filename)
-	db = connection.cursor()
-	db.execute('DELETE FROM playlists WHERE name = ?', (playlist_name,))
-	connection.commit()
-	connection.close()
+def list_playlists_from_db():
+	for playlist in list_playlists():
+		print (playlist)
 
-def get_playlist_url(playlist_name):
-		connection = sqlite3.connect(db_filename)
-		db = connection.cursor()
-		db.execute('SELECT url FROM playlists WHERE name=?', (playlist_name,))
-		result = db.fetchone()
-		connection.close()
-		return result
+def download_video(audio=True):
+	pass
 
-def list_playlists():
-	connection = sqlite3.connect(db_filename)
-	db = connection.cursor()
-	for row in db.execute('select * from playlists'):
-		print (row)
-	connection.close()
+def sync_playlist(audio=True):
+	pass
 
-def update_last_dl(playlist_name):
-	connection = sqlite3.connect(db_filename)
-	db = connection.cursor()
-	time_now = str(datetime.datetime.now())[:19]
-	db.execute('UPDATE playlists SET last_synced=? WHERE name=?', (time_now, playlist_name,))
-	connection.commit()
-	connection.close()
+def sync_playlist(name, dir_):
+	#print (name)
+	url = get_playlist_url(name)
+	#print (url)
+	download_playlist(url, dir_)
+
+def download_playlist(url, dir_):
+	count = 0
+	if not os.path.exists(dir_):
+		os.makedirs(dir_)
+	playlist = pafy.get_playlist2(url)
+	playlist_len = playlist._len
+	playlist_title = make_string_printable(playlist.title)
+	print ('\nDloading playlist: [{}]'.format(playlist_title))
+	for video in playlist:
+		count += 1
+		if song_downloaded(dir_, video.title):
+			print ('Skipping: {}'.format(make_string_printable(video.title, trunc=46)).ljust(70) + '{}/{}'.format(count, playlist_len))
+			continue
+		try:
+			bestaudio = video.getbestaudio()
+		except OSError:
+			continue # Different restrictions: age, country, deleted profile, etc. 
+		except HTTPError:
+			continue
+		filename = filter_filename(bestaudio.filename)
+		filepath = '{}\\{}'.format(dir_, filename)
+		print ('Dloading: {}'.format(make_string_printable(video.title, trunc=46)).ljust(70) + '{}/{}'.format(count, playlist_len))
+		bestaudio.download(filepath=filepath)
+
 
 def usage():
-	parser = argparse.ArgumentParser(usage='''ytsync <command> [<args>]''')
-#         usage='''ytsync <command> [<args>]
+	parser = argparse.ArgumentParser(usage='''ytsync <command> [-h] [<args>]''')
+	parser._positionals.title = 'commands'
 
-# commands:
-#    add       add a playlist
-#    remove    remove a playlist
-#    list      list all playlists
-#    get       syncs a playlist with a given directory
-#    ''')
-	#parser.add_argument('--add', action='store_const', const=lambda:add_playlist(), dest='cmd')
-	subparsers = parser.add_subparsers()
+	subparsers = parser.add_subparsers(dest='command')
 
 	parser_add = subparsers.add_parser('add', help='add playlist', usage='ytsync add <name> <url>')
-	parser_add.add_argument('<name>', type=str, help='playlist name')
-	parser_add.add_argument('<url>', type=str, help='playlist url')
+	parser_add.add_argument('name', type=str, help='playlist name')
+	parser_add.add_argument('url', type=str, help='playlist url')
 
 	parser_remove = subparsers.add_parser('remove', help='remove playllist', usage='ytsync remove <name>')
-	parser_remove.add_argument('<name>', type=str, help='name of the playlist which will be removed')
+	parser_remove.add_argument('name', type=str, help='name of the playlist which will be removed')
 
 	parser_list = subparsers.add_parser('list', help='list playlists', usage='ytsync list')
 
-	parser_get = subparsers.add_parser('get', help='syncs a playlist with a given dir', usage='ytsync get <name> <dir>')
-	parser_get.add_argument('<name>', type=str, help='name of the playlist which will be downloaded')
-	parser_get.add_argument('<dir>', type=str, help='directory in which the playlist will be downloaded')
-	#parser.add_argument('--list', action='store_const', const=lambda:list_playlists(), dest='cmd')
-	parser.parse_args()#.cmd()
+	parser_get = subparsers.add_parser('get', help='download a playlist to a given dir', usage='ytsync get <url> <dir>')
+	parser_get.add_argument('url', type=str, help='url of the playlist which will be downloaded')
+	parser_get.add_argument('dir', type=str, help='directory in which the playlist will be downloaded')
 
-def get():
-	pass
+	parser_sync = subparsers.add_parser('sync', help='sync a playlist with a given dir', usage='ytsync sync <name> <dir>')
+	parser_sync.add_argument('name', type=str, help='name of the playlist which will be synced')
+	parser_sync.add_argument('dir', type=str, help='directory with which the playlist will be synced')
+
+	args = parser.parse_args()
+	return args
 
 if __name__ == '__main__':
-	usage()
-
-
-
-
-	# create_db()
-	# add_playlist('shun', 'lala')
-	# print (get_playlist_url('shun'))
-	# update_last_dl('shun')
-	# list_playlists()
+	args = usage()
+	if args.command == 'add':
+		add_playlist(args.name, args.url)
+	elif args.command == 'remove':
+		remove_playlist(args.name)
+	elif args.command == 'list':
+		list_playlists_from_db()
+	elif args.command == 'get':
+		#download_playlist(args.name, args.dir)
+		#get_video_meta(args.name, 'test_dir')
+		download_playlist('PLe5NT0OhEv1Nw7pBbvkALlTh9PpAoN_1N', args.dir)
+	elif args.command == 'sync':
+		sync_playlist(args.name, args.dir)
+	
+	#print (make_string_printable('rr83uwtfv8日本j94:&*/\\'))
+	#print (filter_filename('r83uwtfv8日本j94:&*/\\'))

@@ -1,5 +1,4 @@
 import string, os, re, sys, glob, time, subprocess, re
-from PlaylistsDB import Playlists
 import pafy
 import requests
 import json
@@ -165,8 +164,8 @@ class Downloader():
         return -float(re.findall(r'-?[0-9]{1,3}[.][0-9]{1}', first_match)[0])
 
     def format_files(self, path, audio_format, delete_original_files=True):
-        if not self.create_playlist_object():
-            return 2
+        # if not self.create_playlist_object():
+        #     return 2
         ### It formats only the non-formated files. ###
         current = 1
         in_and_out_files = self.return_paired_files(self.dir_to_dl, audio_format)
@@ -182,7 +181,7 @@ class Downloader():
             if delete_original_files:
                 os.remove(input_song)
 
-    
+
 
 
     def update_file_index(self, filename, index):
@@ -202,29 +201,6 @@ class Downloader():
 
 
 if __name__ == "__main__":
-    app_data = os.getenv('LOCALAPPDATA')
-    playlist_db = Playlists(app_data + '\\playlists_db\\')
-    playlist_db.create_db()
-    if sys.argv[1] == 'list':
-        playlists = playlist_db.get_playlists()
-        for key in playlists:
-            print (playlists[key][0])
-    elif sys.argv[1] == 'add':
-        playlist_db.add_playlist(sys.argv[2], sys.argv[3])
-    elif sys.argv[1] == 'remove':
-        playlist_db.remove_playlist(sys.argv[2])
-    else:
-        url = playlist_db.get_playlist_url(sys.argv[1])
-        directory = sys.argv[2]
-        p = Downloader(url,directory)
-        if len(sys.argv) > 4:
-            if sys.argv[4] == '--del-all':
-                p.download_playlist(True)
-        else:
-            p.download_playlist(False)
-        p.delete_incomplete_files(directory)
-        #playlist_db.update_last_dl(sys.argv[1])
-        if len(sys.argv) > 3:
-            file_format = sys.argv[3]
-            p.format_files(directory, file_format, True)
-        del p
+    p = Downloader('PLe5NT0OhEv1OuKaNUDH8_dIp5QWbeWV4I', "C:\\Users\\bunar\\Desktop\\music\\music\\bg\\")
+    p.format_files("C:\\Users\\bunar\\Desktop\\music\\music\\bg\\", "mp3", True)
+del p
