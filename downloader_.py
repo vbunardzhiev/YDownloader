@@ -66,13 +66,13 @@ def download_playlist(url, dir_):
 			bestaudio = video.getbestaudio()
 		except OSError:
 			continue # Different restrictions: age, country, deleted profile, etc. 
-		except HTTPError:
-			continue
 		filename = filter_filename(bestaudio.filename)
 		filepath = '{}\\{}'.format(dir_, filename)
 		print ('Dloading: {}'.format(make_string_printable(video.title, trunc=46)).ljust(70) + '{}/{}'.format(count, playlist_len))
-		bestaudio.download(filepath=filepath)
-
+		try:
+			bestaudio.download(filepath=filepath)
+		except HTTPError:
+			continue
 
 def usage():
 	parser = argparse.ArgumentParser(usage='''ytsync <command> [-h] [<args>]''')
@@ -111,7 +111,7 @@ if __name__ == '__main__':
 	elif args.command == 'get':
 		#download_playlist(args.name, args.dir)
 		#get_video_meta(args.name, 'test_dir')
-		download_playlist('PLe5NT0OhEv1Nw7pBbvkALlTh9PpAoN_1N', args.dir)
+		download_playlist(args.url, args.dir)
 	elif args.command == 'sync':
 		sync_playlist(args.name, args.dir)
 	
