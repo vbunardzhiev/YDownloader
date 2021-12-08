@@ -12,4 +12,4 @@ def change_index(path, offset):
         os.rename(file, new_file)
 
 if __name__ == "__main__":
-    change_index(sys.argv[1], sys.argv[2])
+    change_index(sys.argv[1], int(sys.argv[2]))
