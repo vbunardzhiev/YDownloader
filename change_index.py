@@ -9,6 +9,7 @@ def change_index(path, offset):
         new_prefix = int(prefix) + offset
         new_prefix = '0'*(3-len(str(new_prefix))) + str(new_prefix)
         new_file = file.replace(prefix, new_prefix)
+        os.rename(file, new_file)
 
 if __name__ == "__main__":
     change_index(sys.argv[1], sys.argv[2])
